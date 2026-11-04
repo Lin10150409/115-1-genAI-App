@@ -18,7 +18,7 @@ python -m streamlit run app.py
 ```
 
 macOS / Linux 使用 `python3.14 -m venv .venv`、`source .venv/bin/activate`、`cp .env.example .env`，其他指令相同。
-`.env` 填入自己的 API key；Secrets > 環境變數（包含 .env，既有環境變數優先）。
+`.env` 填入自己的 API key；Secrets > 環境變數（包含 .env，既有環境變數優1）。
 缺少 Secrets 檔會回退至環境變數，設定內容不可顯示在畫面或截圖。
 從課程根目錄啟動可用 `python -m streamlit run week08/week08_midterm_simple_teacher/app.py`。
 
