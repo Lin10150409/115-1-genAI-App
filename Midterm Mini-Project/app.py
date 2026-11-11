@@ -382,7 +382,7 @@ if st.session_state.record is not None:
         st.json(record["data"])
 
 # ---------- 7. 延伸：AI問答（你問它答） ----------
-# 不必先整理公告；勾選API後即可提問。已有整理結果時，會一併參考那則公告。
+# 不必先整理公告；打開API開關後即可提問。已有整理結果時，會一併參考那則公告。
 # 每則問題最多1次請求，不自動重試。
 st.divider()
 st.markdown('<div class="step">③ 🤖 阿發ai助理 ：公告有什麼不懂，可以問阿發</div>',
@@ -397,7 +397,7 @@ for message in st.session_state.chat:
     with st.chat_message(message["role"]):
         st.write(message["content"])
 
-# 未勾選API時停用輸入框，避免以為已呼叫模型。
+# API開關未打開時停用輸入框，避免以為已呼叫模型。
 question = st.chat_input(
     "輸入你的問題（最多500字元）" if enable_api else "請先打開左側的「啟用真實 API」才能對阿發進行提問",
     max_chars=500,
