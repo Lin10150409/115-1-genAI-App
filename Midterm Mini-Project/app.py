@@ -310,7 +310,7 @@ for message in st.session_state.chat:
 
 # 未勾選API時停用輸入框，避免以為已呼叫模型。
 question = st.chat_input(
-    "輸入你的問題（最多500字元）" if enable_api else "請先勾選上方「啟用真實 API」才能提問",
+    "輸入你的問題（最多500字元）" if enable_api else "請先勾選上方「啟用真實 API」才能對阿發進行提問",
     max_chars=500,
     disabled=not enable_api,
 )
