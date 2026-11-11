@@ -297,7 +297,7 @@ if st.session_state.record is not None:
 # 不必先整理公告；勾選API後即可提問。已有整理結果時，會一併參考那則公告。
 # 每則問題最多1次請求，不自動重試。
 st.divider()
-st.subheader("AI 問答")
+st.subheader("AI 問答：公告有什麼不懂，問它就會回答你")
 if st.session_state.record is not None:
     st.caption("AI 會參考上方公告原文回答；每則問題 1 次 API 請求，回答仍需自行核對。")
 else:
