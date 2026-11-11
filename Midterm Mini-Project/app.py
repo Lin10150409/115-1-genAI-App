@@ -25,7 +25,27 @@ from openai import OpenAI
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
 # 此處設定瀏覽器頁面；下方st.title才是畫面內的專題標題。
-st.set_page_config(page_title="公告行動清單整理器", layout="centered")
+st.set_page_config(page_title="公告行動清單整理器", page_icon="📋", layout="centered")
+
+# 美化：頁首橫幅與卡片的樣式。顏色固定在橫幅內，淺色與深色主題都看得清楚。
+st.markdown(
+    """
+    <style>
+    .hero {
+        padding: 1.5rem 1.75rem;
+        border-radius: 18px;
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 55%, #db2777 100%);
+        color: #ffffff;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 8px 24px rgba(79, 70, 229, 0.25);
+    }
+    .hero h1 { color: #ffffff; font-size: 1.9rem; margin: 0; padding: 0; }
+    .hero p { margin: 0.5rem 0 0; opacity: 0.92; font-size: 1rem; }
+    .step { font-weight: 700; font-size: 1.15rem; margin: 1.25rem 0 0.5rem; }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 # ---------- 1. 自行完成專題定位與輸出設計 ----------
 # A／B／C是個人設計位置；可以自訂情境，不是填入教師範例的固定答案。
@@ -86,6 +106,13 @@ FIELD_LABELS = {
     "deadlines": "重要期限",
     "missing_info": "還要再確認",
 }
+# 每個欄位卡片的小圖示，只影響畫面。
+FIELD_ICONS = {
+    "summary": "💡",
+    "action_items": "✅",
+    "deadlines": "⏰",
+    "missing_info": "❓",
+}
 
 
 # ---------- 2. 完整提供的兩個短函式 ----------
@@ -127,12 +154,37 @@ def check_result(data):
 
 
 # ---------- 3. 畫面、API開關與狀態初始化 ----------
-st.title(APP_TITLE or "我的期中專題（尚未設定）")
-st.caption("貼上一則課程或社團公告，整理出重點、待辦、期限和待確認事項。請勿輸入個資、機密或未授權內容。")
+# 頁首橫幅取代st.title；APP_TITLE是程式內的固定文字，不是使用者輸入。
+st.markdown(
+    f"""
+    <div class="hero">
+        <h1>📋 {APP_TITLE or "我的期中專題（尚未設定）"}</h1>
+        <p>貼上或上傳一則課程、社團公告，幫你整理出重點、待辦、期限和還要確認的事。</p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
-# 就地開關預設關閉；開啟後每次有效送出最多 1 次請求，重跑另計。
-enable_api = st.checkbox("啟用真實 API（可能產生費用）", value=False)
-st.caption("未啟用時只檢查輸入與設計，不產生 AI 結果。每次有效送出最多 1 次請求。")
+# 設定集中放在側邊欄，主畫面只留輸入、結果與問答。
+with st.sidebar:
+    st.header("⚙️ 設定")
+    # 就地開關預設關閉；開啟後每次有效送出最多 1 次請求，重跑另計。
+    enable_api = st.toggle("啟用真實 API（可能產生費用）", value=False)
+    if enable_api:
+        st.success("已啟用：每次整理或提問 = 1 次 API 請求")
+    else:
+        st.info("未啟用：只檢查輸入與設計，不產生 AI 結果")
+    clear_clicked = st.button("🧹 清除結果", width="stretch")
+
+    st.divider()
+    st.markdown(
+        "**使用方式**\n\n"
+        "1. 打開上方的 API 開關\n"
+        "2. 貼上公告或上傳 .txt 檔\n"
+        "3. 按「整理公告」\n"
+        "4. 有不懂的，往下問阿發"
+    )
+    st.caption("請勿輸入個資、機密或未授權內容；AI 結果仍須對照原文核對。")
 
 # setdefault只在key不存在時給初值；一般rerun不會抹掉上次成果。
 # record放成功資料與原文，error放錯誤文字，兩者不混用。
@@ -148,7 +200,7 @@ if st.session_state.get("api_mode") != enable_api:
     st.session_state.api_mode = enable_api
 
 # 清除只改本機狀態，0次API；不會取消先前費用或刪除平台紀錄。
-if st.button("清除結果"):
+if clear_clicked:
     st.session_state.record = None
     st.session_state.error = ""
     st.session_state.chat = []
@@ -156,10 +208,17 @@ if st.button("清除結果"):
 
 # ---------- 4. 表單集中收集原文 ----------
 # 只有按提交才處理；改文字或切換畫面不應自行呼叫模型。
+st.markdown('<div class="step">① 輸入公告</div>', unsafe_allow_html=True)
 with st.form("project_form"):
     # 表單內改值先留在瀏覽器，按送出才一起提交並重跑。
-    source = st.text_area("貼上一則公告", height=200)
-    submitted = st.form_submit_button("整理公告")
+    # 兩種輸入方式擇一：貼上文字，或上傳txt檔。
+    tab_text, tab_file = st.tabs(["✏️ 貼上文字", "📄 上傳 txt 檔"])
+    with tab_text:
+        source = st.text_area("貼上一則公告", height=200,
+                              placeholder="把公告內容貼在這裡…")
+    with tab_file:
+        uploaded = st.file_uploader("上傳一個 .txt 公告檔（UTF-8 或 Big5 編碼）", type=["txt"])
+    submitted = st.form_submit_button("✨ 整理公告", type="primary", width="stretch")
 
 # ---------- 5. 送出後：輸入→設計檢查→API→回應檢查→保存 ----------
 if submitted:
@@ -168,6 +227,24 @@ if submitted:
     st.session_state.chat = []  # 換一則公告時，舊問答不再適用。
 
     try:
+        # --- 5-0. 有上傳txt檔時，讀出文字當作原文 ---
+        if uploaded is not None:
+            # 兩種方式同時使用時不猜測要用哪一個，請使用者擇一。
+            if source.strip():
+                raise ValueError("請擇一：貼上文字或上傳 txt 檔，不要同時使用。")
+            raw = uploaded.getvalue()
+            if len(raw) > 100_000:
+                raise ValueError("檔案太大，請上傳 100 KB 以內的 txt 檔。")
+            # 先試UTF-8（含記事本的BOM），再試Windows繁中常見的Big5（cp950）。
+            for encoding in ("utf-8-sig", "cp950"):
+                try:
+                    source = raw.decode(encoding)
+                    break
+                except UnicodeDecodeError:
+                    continue
+            else:
+                raise ValueError("無法讀取這個 txt 檔，請另存為 UTF-8 編碼後再上傳。")
+
         # --- 5-1. 先檢查原文與基本設計，不合格就停在本機 ---
         if not source.strip():
             raise ValueError("請先輸入要處理的原文。")
@@ -273,21 +350,32 @@ if st.session_state.error:
 # 顯示放在送出區外；一般重跑保留結果，並附上它對應的原文。
 if st.session_state.record is not None:
     record = st.session_state.record
+    st.markdown('<div class="step">② 整理結果</div>', unsafe_allow_html=True)
     st.success("真實 API 結果：格式檢查通過，內容仍需人工核對。")
-    st.write("本筆結果的原文：", record["input"])
+    with st.expander("📄 查看本筆結果的原文", expanded=False):
+        st.write(record["input"])
 
+    # 每個欄位放進一張有框線的卡片；summary佔滿一列，其餘兩兩並排。
     # 顯示標籤不改JSON的key；沒有自訂標籤時，get回退到原欄位名稱。
-    for name, value in record["data"].items():
-        st.subheader(FIELD_LABELS.get(name, name))
+    def show_field(name, value):
+        with st.container(border=True):
+            st.markdown(f"#### {FIELD_ICONS.get(name, '📌')} {FIELD_LABELS.get(name, name)}")
+            # 清單逐筆顯示；空清單明說沒有項目，其他文字欄位直接顯示。
+            if isinstance(value, list):
+                if not value:
+                    st.caption("原文沒有對應項目。")
+                for item in value:
+                    st.markdown("- " + item)
+            else:
+                st.write(value)
 
-        # 清單逐筆顯示；空清單明說沒有項目，其他文字欄位直接顯示。
-        if isinstance(value, list):
-            if not value:
-                st.write("原文沒有對應項目。")
-            for item in value:
-                st.write("• " + item)
-        else:
-            st.write(value)
+    items = list(record["data"].items())
+    show_field(*items[0])
+    for i in range(1, len(items), 2):
+        cols = st.columns(2)
+        for col, (name, value) in zip(cols, items[i:i + 2]):
+            with col:
+                show_field(name, value)
 
     # 原始JSON供查欄位、型別與除錯，不取代逐欄閱讀原文。
     with st.expander("查看原始 JSON"):
@@ -297,7 +385,8 @@ if st.session_state.record is not None:
 # 不必先整理公告；勾選API後即可提問。已有整理結果時，會一併參考那則公告。
 # 每則問題最多1次請求，不自動重試。
 st.divider()
-st.subheader("阿發ai助理 ：公告有什麼不懂，可以問阿發")
+st.markdown('<div class="step">③ 🤖 阿發ai助理 ：公告有什麼不懂，可以問阿發</div>',
+            unsafe_allow_html=True)
 if st.session_state.record is not None:
     st.caption("AI 會參考上方公告原文回答；每則問題 1 次 API 請求，回答仍需自行核對。")
 else:
@@ -310,7 +399,7 @@ for message in st.session_state.chat:
 
 # 未勾選API時停用輸入框，避免以為已呼叫模型。
 question = st.chat_input(
-    "輸入你的問題（最多500字元）" if enable_api else "請先勾選上方「啟用真實 API」才能對阿發進行提問",
+    "輸入你的問題（最多500字元）" if enable_api else "請先打開左側的「啟用真實 API」才能對阿發進行提問",
     max_chars=500,
     disabled=not enable_api,
 )
